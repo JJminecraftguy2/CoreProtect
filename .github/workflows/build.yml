@@ -1,4 +1,3 @@
-
 name: Build
 
 on:
@@ -15,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7.0.1
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -26,8 +26,26 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build
-        run: mvn -B verify
+      - name: Build CoreProtect
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4; do
+            echo "Build attempt $attempt of 4"
+
+            if mvn -B -ntp verify; then
+              echo "Build successful!"
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 4 ]; then
+              delay=$((attempt * 30))
+              echo "Build failed. Retrying in ${delay} seconds..."
+              sleep "$delay"
+            fi
+          done
+
+          echo "Build failed after 4 attempts."
+          exit 1
 
       - name: Upload Paper/Bukkit JAR artifacts
         uses: actions/upload-artifact@v6
@@ -35,6 +53,6 @@ jobs:
           name: Paper-Bukkit-Build
           path: |
             **/target/*.jar
+            !**/target/original-*.jar
           if-no-files-found: error
-          retention-days: 14
-
+          retention-days: 999
